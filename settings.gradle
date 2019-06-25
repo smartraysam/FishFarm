@@ -1,1 +1,1 @@
-include ':app'
+include ':app', ':poi-4.1.0', ':poi-3.12-android-a', ':poi-ooxml-schemas-3.12-20150511-a'
