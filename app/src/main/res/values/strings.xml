@@ -4,7 +4,7 @@
     <string name="day">Daily View</string>
     <string name="week">Weekly View</string>
     <string name="month">Monthly View</string>
-    <string name="export_data_to_excel">Export Data to Excel</string>
+    <string name="export_data_to_excel">Export Data</string>
     <string name="precision_fish_farm_realtime_data">Precision fish-farm realtime data</string>
     <string name="todays_data">This days data</string>
 </resources>

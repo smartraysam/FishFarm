@@ -2,19 +2,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     tools:context="com.smartdev.fishfarm.MainActivity">
-        <item
-            android:id="@+id/action_day"
-            android:title="@string/day" />
-        <item
-            android:id="@+id/action_week"
-            android:title="@string/week" />
-        <item
-            android:id="@+id/action_month"
-            android:title="@string/month" />
     <item
         android:id="@+id/action_export"
         android:orderInCategory="100"
         android:title="@string/export_data_to_excel"
-        app:showAsAction="never" />
+        app:showAsAction="always" />
 
 </menu>

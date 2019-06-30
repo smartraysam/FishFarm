@@ -2,14 +2,17 @@ package com.smartdev.fishfarm;
 
 import android.annotation.TargetApi;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.inputmethodservice.Keyboard;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.renderscript.Sampler;
 import android.support.annotation.NonNull;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -20,6 +23,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,6 +42,11 @@ import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.LargeValueFormatter;
 import com.github.mikephil.charting.utils.ColorTemplate;
 import com.smartdev.fishfarm.Model.DataModel;
+import com.smartdev.fishfarm.Model.LogModel;
+import com.smartdev.fishfarm.util.Constants;
+import com.smartdev.fishfarm.util.GsonUtil;
+import com.smartdev.fishfarm.util.NetworkClient;
+import com.smartdev.fishfarm.util.RequestInterface;
 
 import org.apache.poi.hssf.usermodel.HSSFCellStyle;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -51,29 +60,38 @@ import org.apache.poi.ss.usermodel.Workbook;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
-import static android.Manifest.permission.READ_EXTERNAL_STORAGE;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Retrofit;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
 public class MainActivity extends AppCompatActivity {
 
     BarChart DataChart;
-    TextView viewLabel;
-    ArrayList<DataModel> Data;
-    ArrayList<String> weekLabels;
-    ArrayList<String> dayLabels;
-    ArrayList<String> monthLabels;
 
+    boolean isExport, isReload=false;
+    ArrayList<LogModel> sortedData;
+    ArrayList<LogModel> logData= new ArrayList<>();
+    ArrayList<String> sampleLabels;
+    String From, Till;
     ArrayList<BarEntry> PHEntry;
     ArrayList<BarEntry> DOXEntry;
     ArrayList<BarEntry> TempEntry;
     ArrayList<BarEntry> SalinityEntry;
     BarDataSet PHBaraDataSet, OXBaraDataSet, TempBaraDataSet, SalinityBaraDataSet;
     BarData farmData;
+    LinearLayout content;
     float barSpace = 0.02f;
     float groupSpace = 0.3f;
     int groupCount = 5;
+    private ProgressDialog progress;
     BarEntry barEntry;
     private static final int PERMISSION_REQUEST_CODE = 200;
 
@@ -83,94 +101,49 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        viewLabel = findViewById(R.id.ViewType);
         DataChart = findViewById(R.id.DataChart);
+        content =findViewById(R.id.contentFrame);
         DataChart.setTouchEnabled(true);
         DataChart.setPinchZoom(true);
-        dayLabels = new ArrayList<>();
-        for (int i = 0; i < 24; i++) {
-            if(i<10){
-                dayLabels.add("0"+i + ":00hr");
-            }else{
-                dayLabels.add(i + ":00hr");
-            }
+        sampleLabels = new ArrayList<>();
+       for(int i=1; i<6; i++){
+           sampleLabels.add("Sample "+i);
+       }
+        Date date = new Date();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+        From= formatter.format(date) +" 00:00:00";
+        Till= formatter.format(date) +" 23:59:59";
+        getDataLog(From,Till);
+        ScheduledThreadPoolExecutor executor =  new ScheduledThreadPoolExecutor(1);
+       executor.scheduleAtFixedRate(new Runnable() {
+           @Override
+           public void run() {
+               isReload =true;
+               Date date = new Date();
+               SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+               From= formatter.format(date) +" 00:00:00";
+               Till= formatter.format(date) +" 23:59:59";
+               getDataLog(From,Till);
+               Log.d(Constants.TAG,"Reload");
+           }
+       },0,30, TimeUnit.SECONDS);
 
-        }
-        weekLabels = new ArrayList<>();
-        weekLabels.add("Mon");
-        weekLabels.add("Tue");
-        weekLabels.add("Wed");
-        weekLabels.add("Thur");
-        weekLabels.add("Fri");
-        weekLabels.add("Sat");
-        weekLabels.add("Sun");
-        monthLabels = new ArrayList<>();
-        monthLabels.add("Jan");
-        monthLabels.add("Feb");
-        monthLabels.add("March");
-        monthLabels.add("April");
-        monthLabels.add("May");
-        monthLabels.add("June");
-        monthLabels.add("July");
-        monthLabels.add("Aug");
-        monthLabels.add("Sep");
-        monthLabels.add("Oct");
-        monthLabels.add("Nov");
-        monthLabels.add("Dec");
-        Data = new ArrayList<>();
-        DataModel senseData = new DataModel();
-        senseData.setDate("2019/06/11, 05:30");
-        senseData.setDissolvedOXdata("23.55");
-        senseData.setPHData("21.55");
-        senseData.setTempData("33.55");
-        senseData.setSalinitydata("12.55");
-        Data.add(senseData);
-        senseData = new DataModel();
-        senseData.setDate("2019/06/12, 05:30");
-        senseData.setDissolvedOXdata("20.50");
-        senseData.setPHData("21.05");
-        senseData.setTempData("13.82");
-        senseData.setSalinitydata("22.58");
-        Data.add(senseData);
-        senseData = new DataModel();
-        senseData.setDate("2019/06/13, 01:30");
-        senseData.setDissolvedOXdata("11.03");
-        senseData.setPHData("14.2");
-        senseData.setTempData("21.82");
-        senseData.setSalinitydata("24.08");
-        Data.add(senseData);
-        senseData = new DataModel();
-        senseData.setDate("2019/06/14, 12:30");
-        senseData.setDissolvedOXdata("22.00");
-        senseData.setPHData("19.21");
-        senseData.setTempData("15.02");
-        senseData.setSalinitydata("12.38");
-        Data.add(senseData);
-        senseData = new DataModel();
-        senseData.setDate("2019/06/15, 07:30");
-        senseData.setDissolvedOXdata("22.50");
-        senseData.setPHData("31.07");
-        senseData.setTempData("43.32");
-        senseData.setSalinitydata("02.78");
-        Data.add(senseData);
-        ChartView(Data, dayLabels);
 
     }
-
-    void ChartView(ArrayList<DataModel> ChartData,  ArrayList<String> labels) {
+    void ChartView(ArrayList<LogModel> ChartData,  ArrayList<String> labels) {
         int count=0;
         PHEntry = new ArrayList<>();
         TempEntry = new ArrayList<>();
         DOXEntry = new ArrayList<>();
         SalinityEntry = new ArrayList<>();
-        for(DataModel dModel: ChartData){
-            barEntry = new BarEntry(count, Float.valueOf(dModel.getPHData()));
+        for(LogModel dModel: ChartData){
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getPH()));
             PHEntry.add(barEntry);
-            barEntry = new BarEntry(count, Float.valueOf(dModel.getTempData())); // Mar
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getTemperature())); // Mar
             TempEntry.add(barEntry);
-            barEntry = new BarEntry(count, Float.valueOf(dModel.getDissolvedOXdata())); // Mar
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getDissolveOxy())); // Mar
             DOXEntry.add(barEntry);
-            barEntry = new BarEntry(count, Float.valueOf(dModel.getSalinitydata())); // Mar
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getSanility())); // Mar
             SalinityEntry.add(barEntry);
             count++;
         }
@@ -221,32 +194,16 @@ public class MainActivity extends AppCompatActivity {
         int id = item.getItemId();
         //noinspection SimplifiableIfStatement
         if (id == R.id.action_export) {
-            if (checkPermission()) {
-                requestPermissionAndContinue();
-            }
-            else{
-                saveExcelFile(this,"FarmDataExport.xls",Data);
-            }
-
-            return true;
-        } else if (id == R.id.action_day) {
-            viewLabel.setText("This day data");
-            ChartView(Data,dayLabels);
-            return true;
-        } else if (id == R.id.action_week) {
-            viewLabel.setText("This week data");
-            ChartView(Data,weekLabels);
-            return true;
-        } else if (id == R.id.action_month) {
-            viewLabel.setText("This month data");
-            ChartView(Data,monthLabels);
+            logData = new ArrayList<>();
+            isExport=true;
+            getDataLog("all","all");
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
 
-    private boolean saveExcelFile(Context context, String fileName,ArrayList<DataModel>FarmData) {
+    private boolean saveExcelFile(Context context, String fileName,ArrayList<LogModel>FarmData) {
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
             Log.e("FISHFARM", "Storage not available or read only");
             return false;
@@ -299,13 +256,13 @@ public class MainActivity extends AppCompatActivity {
         sheet1.setColumnWidth(3, (15 * 500));
         sheet1.setColumnWidth(4, (15 * 500));
         int rowNum = 1;
-        for (DataModel data : FarmData) {
+        for (LogModel data : FarmData) {
             Row rows = sheet1.createRow(rowNum++);
-            rows.createCell(0).setCellValue(data.getDate());
-            rows.createCell(1).setCellValue(data.getPHData());
-            rows.createCell(2).setCellValue(data.getTempData());
-            rows.createCell(3).setCellValue(data.getDissolvedOXdata());
-            rows.createCell(4).setCellValue(data.getSalinitydata());
+            rows.createCell(0).setCellValue(data.getEvent());
+            rows.createCell(1).setCellValue(data.getPH());
+            rows.createCell(2).setCellValue(data.getTemperature());
+            rows.createCell(3).setCellValue(data.getDissolveOxy());
+            rows.createCell(4).setCellValue(data.getSanility());
         }
 
         // Create a path where we will place our List of objects on external storage
@@ -385,7 +342,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
                 if (flag) {
-                    saveExcelFile(this,"FarmDataExport.xls",Data);
+                        saveExcelFile(this,"FarmDataExport.xls",logData);
                 } else {
                     finish();
                 }
@@ -396,5 +353,72 @@ public class MainActivity extends AppCompatActivity {
         } else {
             super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
+    }
+
+
+    private void getDataLog(String from, String till) {
+        if(!isReload){
+            progress = new ProgressDialog(this);
+            progress.setIndeterminate(true);
+            progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progress.setMessage("Loading Data...");
+            progress.setCancelable(true);
+            progress.show();
+        }
+        Retrofit retrofit = NetworkClient.getRetrofitClient();
+        RequestInterface requestInterface = retrofit.create(RequestInterface.class);
+        Call call;
+        if(from.equals("all") && till.equals("all")){
+            call = requestInterface.getAllLog();
+        }else{
+            call = requestInterface.getLogWithDate(from, till);
+        }
+        call.enqueue(new Callback<ArrayList<LogModel>>() {
+            @Override
+            public void onResponse(Call<ArrayList<LogModel>> call, retrofit2.Response<ArrayList<LogModel>> response) {
+                logData = response.body();
+                if(logData.size()==0){
+                    final Snackbar snackBar = Snackbar.make(content, "No data is available.", Snackbar.LENGTH_LONG);
+                    snackBar.show();  
+                }
+                if (progress != null) {
+                    progress.dismiss();
+                }
+                Log.d(Constants.TAG, String.valueOf(logData.size()));
+                if(!isExport){
+                    if(logData.size()>6){
+                        sortedData = new ArrayList<>();
+                        for(int i=1; i<6; i++){
+                            sortedData.add(logData.get(logData.size()-i));
+                        }
+                        ChartView(sortedData, sampleLabels);
+                    }else{
+                        ChartView(logData, sampleLabels);
+                    }
+
+                }else{
+                    if (checkPermission()) {
+                        requestPermissionAndContinue();
+                    }
+                    else{
+                        saveExcelFile(MainActivity.this,"FarmDataExport.xls",logData);
+                    }
+                    isExport=false;
+                }
+
+
+            }
+            @Override
+            public void onFailure(Call<ArrayList<LogModel>> call, Throwable t) {
+                // handleSignInResult(null);
+                if (progress != null) {
+                    progress.dismiss();
+                }
+                Log.d(Constants.TAG, "failed");
+                final Snackbar snackBar = Snackbar.make(content, "Error occur. Try Again!!!", Snackbar.LENGTH_LONG);
+                snackBar.show();
+
+            }
+        });
     }
 }
