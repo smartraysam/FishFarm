@@ -44,15 +44,15 @@
     <android.support.v7.widget.CardView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_marginLeft="8dp"
         android:layout_marginTop="20dp"
-        android:layout_marginRight="8dp"
         app:layout_gravity="fill_horizontal">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:padding="8dp">
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -76,7 +76,6 @@
                     android:layout_gravity="center"
                     android:layout_marginLeft="5dp"
                     android:layout_weight="1"
-                    android:text="25.00\u2103"
                     android:textColor="@android:color/black"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -105,7 +104,6 @@
                     android:layout_gravity="center"
                     android:layout_marginLeft="5dp"
                     android:layout_weight="1"
-                    android:text="25.00"
                     android:textColor="@android:color/black"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -134,7 +132,6 @@
                     android:layout_gravity="center"
                     android:layout_marginLeft="5dp"
                     android:layout_weight="1"
-                    android:text="25.00"
                     android:textColor="@android:color/black"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -163,7 +160,6 @@
                     android:layout_gravity="center"
                     android:layout_marginLeft="5dp"
                     android:layout_weight="1"
-                    android:text="25.00"
                     android:textColor="@android:color/black"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -192,7 +188,6 @@
                     android:layout_gravity="center"
                     android:layout_marginLeft="5dp"
                     android:layout_weight="1"
-                    android:text="25.00"
                     android:textColor="@android:color/black"
                     android:textSize="24sp"
                     android:textStyle="bold" />
@@ -205,6 +200,7 @@
                 android:layout_weight="1"
                 android:background="@drawable/fish"
                 android:orientation="vertical"></LinearLayout>
+
             <Button
                 android:id="@+id/buttonGraph"
                 android:layout_width="match_parent"

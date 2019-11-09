@@ -75,13 +75,8 @@ import retrofit2.Retrofit;
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-
-    BarChart DataChart;
-
     boolean isExport, isReload = false;
-    ArrayList<LogModel> sortedData;
     ArrayList<LogModel> logData = new ArrayList<>();
-    ArrayList<String> sampleLabels;
     String From, Till;
     LinearLayout content;
     private ProgressDialog progress;
@@ -103,10 +98,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         txtTurb = findViewById(R.id.textTur);
         showGraph = findViewById(R.id.buttonGraph);
         showGraph.setOnClickListener(this);
-
-        for (int i = 1; i < 6; i++) {
-            sampleLabels.add("Sample " + i);
-        }
         Date date = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
         From = formatter.format(date) + " 00:00:00";
@@ -132,7 +123,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onClick(View v) {
         if(v == showGraph){
-
+            Intent showgraph = new Intent(MainActivity.this, GraphActivity.class);
+            startActivity(showgraph);
         }
     }
 
@@ -345,6 +337,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (logData.size() == 0) {
                     final Snackbar snackBar = Snackbar.make(content, "No data is available.", Snackbar.LENGTH_LONG);
                     snackBar.show();
+                    if (progress != null) {
+                        progress.dismiss();
+                    }
+                    return;
                 }
                 if (progress != null) {
                     progress.dismiss();

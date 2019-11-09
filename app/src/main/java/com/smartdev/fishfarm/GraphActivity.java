@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
@@ -192,6 +193,11 @@ public class GraphActivity extends AppCompatActivity {
             isExport=true;
             getDataLog("all","all");
             return true;
+        }
+        if (id == R.id.home) {
+            Intent home = new Intent(GraphActivity.this, MainActivity.class);
+            startActivity(home);
+            finish();
         }
         return super.onOptionsItemSelected(item);
     }
