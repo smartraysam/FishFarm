@@ -5,15 +5,13 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
-import android.inputmethodservice.Keyboard;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.renderscript.Sampler;
 import android.support.annotation.NonNull;
+import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -23,29 +21,19 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.TextView;
-import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.BarChart;
-import com.github.mikephil.charting.components.AxisBase;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.BarData;
 import com.github.mikephil.charting.data.BarDataSet;
 import com.github.mikephil.charting.data.BarEntry;
-import com.github.mikephil.charting.data.DataSet;
-import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.DefaultValueFormatter;
-import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.LargeValueFormatter;
-import com.github.mikephil.charting.utils.ColorTemplate;
-import com.smartdev.fishfarm.Model.DataModel;
 import com.smartdev.fishfarm.Model.LogModel;
 import com.smartdev.fishfarm.util.Constants;
-import com.smartdev.fishfarm.util.GsonUtil;
 import com.smartdev.fishfarm.util.NetworkClient;
 import com.smartdev.fishfarm.util.RequestInterface;
 
@@ -64,7 +52,6 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.List;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
@@ -74,66 +61,110 @@ import retrofit2.Retrofit;
 
 import static android.Manifest.permission.WRITE_EXTERNAL_STORAGE;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
-
+public class GraphActivity extends AppCompatActivity {
     BarChart DataChart;
 
-    boolean isExport, isReload = false;
+    boolean isExport, isReload=false;
     ArrayList<LogModel> sortedData;
-    ArrayList<LogModel> logData = new ArrayList<>();
+    ArrayList<LogModel> logData= new ArrayList<>();
     ArrayList<String> sampleLabels;
     String From, Till;
+    ArrayList<BarEntry> PHEntry;
+    ArrayList<BarEntry> DOXEntry;
+    ArrayList<BarEntry> TempEntry;
+    ArrayList<BarEntry> SalinityEntry;
+    BarDataSet PHBaraDataSet, OXBaraDataSet, TempBaraDataSet, SalinityBaraDataSet;
+    BarData farmData;
     LinearLayout content;
+    float barSpace = 0.02f;
+    float groupSpace = 0.3f;
+    int groupCount = 5;
     private ProgressDialog progress;
+    BarEntry barEntry;
     private static final int PERMISSION_REQUEST_CODE = 200;
-    TextView txtTemp, txtPh, txtCond, txtOxy, txtTurb;
-    Button showGraph;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_graph);
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        content = findViewById(R.id.contentFrame);
-        txtTemp = findViewById(R.id.textTemp);
-        txtPh = findViewById(R.id.textPh);
-        txtCond = findViewById(R.id.textCon);
-        txtOxy = findViewById(R.id.textOxy);
-        txtTurb = findViewById(R.id.textTur);
-        showGraph = findViewById(R.id.buttonGraph);
-        showGraph.setOnClickListener(this);
-
-        for (int i = 1; i < 6; i++) {
-            sampleLabels.add("Sample " + i);
+        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        DataChart = findViewById(R.id.DataChart);
+        content =findViewById(R.id.contentFrame);
+        DataChart.setTouchEnabled(true);
+        DataChart.setPinchZoom(true);
+        sampleLabels = new ArrayList<>();
+        for(int i=1; i<6; i++){
+            sampleLabels.add("Sample "+i);
         }
         Date date = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-        From = formatter.format(date) + " 00:00:00";
-        Till = formatter.format(date) + " 23:59:59";
-        getDataLog(From, Till);
-        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+        From= formatter.format(date) +" 00:00:00";
+        Till= formatter.format(date) +" 23:59:59";
+        getDataLog(From,Till);
+        ScheduledThreadPoolExecutor executor =  new ScheduledThreadPoolExecutor(1);
         executor.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
-                isReload = true;
+                isReload =true;
                 Date date = new Date();
                 SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-                From = formatter.format(date) + " 00:00:00";
-                Till = formatter.format(date) + " 23:59:59";
-                getDataLog(From, Till);
-                Log.d(Constants.TAG, "Reload");
+                From= formatter.format(date) +" 00:00:00";
+                Till= formatter.format(date) +" 23:59:59";
+                getDataLog(From,Till);
+                Log.d(Constants.TAG,"Reload");
             }
-        }, 0, 10, TimeUnit.SECONDS);
-
+        },0,10, TimeUnit.SECONDS);
 
     }
-
-    @Override
-    public void onClick(View v) {
-        if(v == showGraph){
-
+    void ChartView(ArrayList<LogModel> ChartData,  ArrayList<String> labels) {
+        int count=0;
+        PHEntry = new ArrayList<>();
+        TempEntry = new ArrayList<>();
+        DOXEntry = new ArrayList<>();
+        SalinityEntry = new ArrayList<>();
+        for(LogModel dModel: ChartData){
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getPH()));
+            PHEntry.add(barEntry);
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getTemperature())); // Mar
+            TempEntry.add(barEntry);
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getDissolveOxy())); // Mar
+            DOXEntry.add(barEntry);
+            barEntry = new BarEntry(count, Float.valueOf(dModel.getSanility())); // Mar
+            SalinityEntry.add(barEntry);
+            count++;
         }
+        DataChart.getAxisRight().setEnabled(false);
+        YAxis leftAxis = DataChart.getAxisLeft();
+        leftAxis.setValueFormatter(new LargeValueFormatter());
+        PHBaraDataSet = new BarDataSet(PHEntry, "PH");
+        PHBaraDataSet.setColor(Color.RED);
+        OXBaraDataSet = new BarDataSet(DOXEntry, "Turbidity");
+        OXBaraDataSet.setColor(Color.BLUE);
+        TempBaraDataSet = new BarDataSet(TempEntry, "Temperature");
+        TempBaraDataSet.setColor(Color.GREEN);
+        SalinityBaraDataSet = new BarDataSet(SalinityEntry, "Conductivity");
+        SalinityBaraDataSet.setColor(Color.YELLOW);
+        farmData = new BarData(PHBaraDataSet, OXBaraDataSet, TempBaraDataSet, SalinityBaraDataSet);
+        farmData.setValueFormatter(new DefaultValueFormatter(2));
+        XAxis xAxis = DataChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        DataChart.getAxisLeft().setAxisMinimum(0);
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setGranularity(1);
+        xAxis.setCenterAxisLabels(true);
+        xAxis.setGranularityEnabled(true);
+        xAxis.setCenterAxisLabels(true);
+        //IMPORTANT *****
+        DataChart.setData(farmData);
+        DataChart.setVisibleXRangeMaximum(20); // allow 20 values to be displayed at once on the x-axis, not more
+        DataChart.moveViewToX(10);
+        farmData.setBarWidth(0.15f);
+        DataChart.getXAxis().setAxisMinimum(0);
+        DataChart.getXAxis().setAxisMaximum(0 + DataChart.getBarData().getGroupWidth(groupSpace, barSpace) * groupCount);
+        DataChart.groupBars(0, groupSpace, barSpace);
+        DataChart.invalidate(); // refresh
     }
 
     @Override
@@ -158,15 +189,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             progress.setCancelable(true);
             progress.show();
             logData = new ArrayList<>();
-            isExport = true;
-            getDataLog("all", "all");
+            isExport=true;
+            getDataLog("all","all");
             return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
 
-    private boolean saveExcelFile(Context context, String fileName, ArrayList<LogModel> FarmData) {
+    private boolean saveExcelFile(Context context, String fileName, ArrayList<LogModel>FarmData) {
         if (!isExternalStorageAvailable() || isExternalStorageReadOnly()) {
             Log.e("FISHFARM", "Storage not available or read only");
             return false;
@@ -250,7 +281,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         return success;
     }
-
     public static boolean isExternalStorageReadOnly() {
         String extStorageState = Environment.getExternalStorageState();
         if (Environment.MEDIA_MOUNTED_READ_ONLY.equals(extStorageState)) {
@@ -270,7 +300,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean checkPermission() {
         return ContextCompat.checkSelfPermission(this, WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED;
     }
-
     private void requestPermissionAndContinue() {
         if (ContextCompat.checkSelfPermission(this, WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
 
@@ -282,14 +311,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 alertBuilder.setPositiveButton(android.R.string.yes, new DialogInterface.OnClickListener() {
                     @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
                     public void onClick(DialogInterface dialog, int which) {
-                        ActivityCompat.requestPermissions(MainActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+                        ActivityCompat.requestPermissions(GraphActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
                     }
                 });
                 AlertDialog alert = alertBuilder.create();
                 alert.show();
                 Log.e("", "permission denied, show dialog");
             } else {
-                ActivityCompat.requestPermissions(MainActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
+                ActivityCompat.requestPermissions(GraphActivity.this, new String[]{WRITE_EXTERNAL_STORAGE}, PERMISSION_REQUEST_CODE);
             }
         }
     }
@@ -307,7 +336,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
                 if (flag) {
-                    saveExcelFile(this, "FarmDataExport.xls", logData);
+                    saveExcelFile(this,"FarmDataExport.xls",logData);
                 } else {
                     finish();
                 }
@@ -322,7 +351,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
     private void getDataLog(String from, String till) {
-        if (!isReload) {
+        if(!isReload){
             progress = new ProgressDialog(this);
             progress.setIndeterminate(true);
             progress.setProgressStyle(ProgressDialog.STYLE_SPINNER);
@@ -333,16 +362,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Retrofit retrofit = NetworkClient.getRetrofitClient();
         RequestInterface requestInterface = retrofit.create(RequestInterface.class);
         Call call;
-        if (from.equals("all") && till.equals("all")) {
+        if(from.equals("all") && till.equals("all")){
             call = requestInterface.getAllLog();
-        } else {
+        }else{
             call = requestInterface.getLogWithDate(from, till);
         }
         call.enqueue(new Callback<ArrayList<LogModel>>() {
             @Override
             public void onResponse(Call<ArrayList<LogModel>> call, retrofit2.Response<ArrayList<LogModel>> response) {
                 logData = response.body();
-                if (logData.size() == 0) {
+                if(logData.size()==0){
                     final Snackbar snackBar = Snackbar.make(content, "No data is available.", Snackbar.LENGTH_LONG);
                     snackBar.show();
                 }
@@ -350,27 +379,31 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     progress.dismiss();
                 }
                 Log.d(Constants.TAG, String.valueOf(logData.size()));
-                if (!isExport) {
-                    LogModel dModel = logData.get(0);
-                    txtTemp.setText(dModel.getTemperature()+"\u2103");
-                    txtPh.setText(dModel.getPH());
-                    txtOxy.setText(" ");
-                    txtTurb.setText(dModel.getDissolveOxy());
-                    txtCond.setText(dModel.getSanility());
-                } else {
+                if(!isExport){
+                    if(logData.size()>6){
+                        sortedData = new ArrayList<>();
+                        for(int i=1; i<6; i++){
+                            sortedData.add(logData.get(logData.size()-i));
+                        }
+                        ChartView(sortedData, sampleLabels);
+                    }else{
+                        ChartView(logData, sampleLabels);
+                    }
+
+                }else{
                     if (checkPermission()) {
                         requestPermissionAndContinue();
-                    } else {
-                        saveExcelFile(MainActivity.this, "FarmDataExport.xls", logData);
+                    }
+                    else{
+                        saveExcelFile(GraphActivity.this,"FarmDataExport.xls",logData);
                     }
                     final Snackbar snackBar = Snackbar.make(content, "Exporting of Data Done.\n Check your SDCard for the Export file", Snackbar.LENGTH_LONG);
                     snackBar.show();
-                    isExport = false;
+                    isExport=false;
                 }
 
 
             }
-
             @Override
             public void onFailure(Call<ArrayList<LogModel>> call, Throwable t) {
                 // handleSignInResult(null);
@@ -384,4 +417,5 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
     }
+
 }

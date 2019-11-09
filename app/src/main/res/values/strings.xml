@@ -7,4 +7,8 @@
     <string name="export_data_to_excel">Export Data</string>
     <string name="precision_fish_farm_realtime_data">Precision fish-farm realtime data</string>
     <string name="todays_data">This days data</string>
+
+    <string name="title_activity_graph">GraphActivity</string>
+    <string name="dummy_button">Dummy Button</string>
+    <string name="dummy_content">DUMMY\nCONTENT</string>
 </resources>
