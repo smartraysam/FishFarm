@@ -347,10 +347,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 Log.d(Constants.TAG, String.valueOf(logData.size()));
                 if (!isExport) {
-                    LogModel dModel = logData.get(0);
+                    LogModel dModel = logData.get(logData.size()-1);
                     txtTemp.setText(dModel.getTemperature()+"\u2103");
                     txtPh.setText(dModel.getPH());
-                    txtOxy.setText(" ");
+                    txtOxy.setText("0.00 ");
                     txtTurb.setText(dModel.getDissolveOxy());
                     txtCond.setText(dModel.getSanility());
                 } else {
